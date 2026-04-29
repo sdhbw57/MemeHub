@@ -1,0 +1,20 @@
+[Unit]
+Description=Image Hosting Server
+After=network.target mysql.service redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/imagehosting/server
+ExecStart=/usr/bin/node src/app.js
+Restart=on-failure
+RestartSec=10
+Environment=NODE_ENV=production
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
