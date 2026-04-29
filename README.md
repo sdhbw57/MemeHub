@@ -1,4 +1,130 @@
-# 高性能图片站部署指南
+# MemeHub - 高性能图片托管与表情包画廊
+
+> 一个可以支持大量图片、高并发访问、加载速度快的图站系统，适合表情包、图片分享和直链访问。
+
+**项目地址**: https://github.com/sdhbw57/MemeHub
+
+## 功能特性
+
+- **图片上传**: 支持 JPG/PNG/GIF/WEBP 格式，最大 5MB，UUID 命名防冲突
+- **缩略图生成**: 自动使用 Sharp 生成 300x300 缩略图，加速页面加载
+- **URL 加密**: AES-256-CBC 加密图片链接，防止直接爬取和盗链
+- **分类管理**: 8 个预设分类（搞笑、动漫、游戏、斗图等），支持按分类筛选
+- **搜索功能**: 支持按图片名称搜索
+- **分享链接**: 支持直链、Markdown、HTML、BBCode 多种格式
+- **Redis 缓存**: 热门图片和分类数据缓存，减轻数据库压力
+- **响应式 UI**: 磨砂玻璃主题，移动端优先设计
+- **AI API**: 专为 AI 调用优化的简洁 API 端点
+
+## 快速开始
+
+### 本地开发
+
+```bash
+# 1. 安装依赖
+cd server
+npm install
+
+# 2. 启动 Redis（Windows 需提前安装）
+redis-server
+
+# 3. 启动服务
+npm start
+
+# 访问 http://localhost:3000
+```
+
+### Docker 部署
+
+```bash
+# 使用 docker-compose 一键部署
+docker-compose up -d
+```
+
+## 更新日志
+
+### v1.2.0 (2026-04-29)
+
+**新增**
+- 新增 AI 专用 API 工具，提供 4 个简洁端点
+  - `GET /api/tools/search` - 搜索图片
+  - `GET /api/tools/categories` - 获取所有分类
+  - `GET /api/tools/popular` - 获取热门图片
+  - `GET /api/tools/image/:id` - 获取单张图片详情
+- 所有 API 返回统一格式 `success: true/false`
+- 支持分页参数（limit + offset）
+
+**优化**
+- 修复缩略图 URL 加密逻辑
+- 图片流传输改用 `createReadStream` 替代 `sendFile`
+- 前端增加 3 次自动重试机制
+- API 请求禁用缓存，确保数据实时性
+
+**修复**
+- 修复首页分类加载失败问题
+- 修复图片 404 错误
+- 修复缩略图不显示问题
+
+### v1.1.0 (2026-04-29)
+
+**新增**
+- URL 加密功能（AES-256-CBC）
+- 流式文件传输支持
+- 文件存在性检查
+
+### v1.0.0 (2026-04-29)
+
+**首次发布**
+- 图片上传与管理
+- 分类系统
+- 搜索与分页
+- 缩略图生成
+- 磨砂玻璃 UI 主题
+- Redis 缓存
+- Nginx 配置
+- 完整部署文档
+
+## AI API 使用
+
+所有 API 返回 JSON 格式，AI 可直接解析使用：
+
+```bash
+# 搜索图片
+curl "http://localhost:3000/api/tools/search?q=猫咪&limit=10"
+
+# 获取分类列表
+curl "http://localhost:3000/api/tools/categories"
+
+# 获取热门图片
+curl "http://localhost:3000/api/tools/popular?limit=10"
+
+# 获取图片详情
+curl "http://localhost:3000/api/tools/image/图片ID"
+```
+
+返回示例：
+```json
+{
+  "success": true,
+  "total": 4,
+  "count": 4,
+  "images": [
+    {
+      "id": "ea8acf4e-ed19-4443-9411-1cbb7c0d4cf9",
+      "name": "R.jfif",
+      "category": "未分类",
+      "width": 800,
+      "height": 944,
+      "views": 0,
+      "thumbnailUrl": "http://localhost:3000/t/加密缩略图ID",
+      "directUrl": "http://localhost:3000/i/加密图片ID.jpg"
+    }
+  ],
+  "has_more": false
+}
+```
+
+---
 
 ## 系统要求
 
