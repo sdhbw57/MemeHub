@@ -16,6 +16,10 @@ export function getDashboard() {
   return request.get('/admin/dashboard');
 }
 
+export function getHeartbeat() {
+  return request.get('/admin/heartbeat');
+}
+
 export function getImages(params) {
   return request.get('/admin/images', { params });
 }

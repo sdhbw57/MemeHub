@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS image_tasks (
 
 -- 初始数据 - 默认管理员账号: admin / admin123
 INSERT INTO admins (username, password, email, role) VALUES 
-('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin@memehub.com', 'super_admin');
+('admin', '$2b$10$eYcNkBHu0WvJ3K4sch0Zj.8dmIuoz9I3gNPwSwSktJ.k0kSnM1Iey', 'admin@memehub.com', 'super_admin');
 
 INSERT INTO settings (key, value, description) VALUES
 ('max_upload_size', '5', '最大上传文件大小（MB）'),

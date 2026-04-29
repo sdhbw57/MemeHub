@@ -98,7 +98,7 @@ INSERT OR IGNORE INTO categories (name, slug, description, sort_order) VALUES
 
 -- 插入默认管理员 (用户名: admin, 密码: admin123)
 INSERT OR IGNORE INTO admins (username, password, email, role) VALUES 
-('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin@memehub.com', 'super_admin');
+('admin', '$2b$10$eYcNkBHu0WvJ3K4sch0Zj.8dmIuoz9I3gNPwSwSktJ.k0kSnM1Iey', 'admin@memehub.com', 'super_admin');
 
 -- 插入默认设置
 INSERT OR IGNORE INTO settings (key, value, description) VALUES

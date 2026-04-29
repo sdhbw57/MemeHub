@@ -21,17 +21,27 @@
 ### 本地开发
 
 ```bash
-# 1. 安装依赖
+# 1. 安装后端依赖
 cd server
 npm install
 
-# 2. 启动 Redis（Windows 需提前安装）
+# 2. 安装前端依赖
+cd ../admin-ui
+npm install
+
+# 3. 构建前端
+npm run build
+
+# 4. 启动 Redis（Windows 需提前安装）
 redis-server
 
-# 3. 启动服务
+# 5. 启动服务
+cd ../server
 npm start
 
-# 访问 http://localhost:3000
+# 前台访问 http://localhost:3000
+# 后台访问 http://localhost:3000/admin/
+# 默认管理员: admin / admin123
 ```
 
 ### Docker 部署
@@ -39,7 +49,28 @@ npm start
 ```bash
 # 使用 docker-compose 一键部署
 docker-compose up -d
+
+# 访问地址
+# 前台: http://localhost:3000
+# 后台: http://localhost:3000/admin/
+# 默认管理员: admin / admin123
 ```
+
+## 后台管理
+
+访问 `http://your-domain/admin/` 进入后台管理系统
+
+| 功能模块 | 说明 |
+|---------|------|
+| 仪表盘 | 查看图片统计、今日上传、系统运行状态 |
+| 图片管理 | 搜索、删除、批量删除、修改图片分类 |
+| 分类管理 | 创建、编辑、删除、排序分类 |
+| 标签规则 | 配置自动分类的标签匹配规则 |
+| 系统设置 | 上传大小、格式限制、功能开关 |
+| 管理员 | 管理后台用户（仅超级管理员） |
+| 操作日志 | 查看所有操作记录 |
+
+**默认管理员账号**: `admin` / `admin123`
 
 ## 更新日志
 

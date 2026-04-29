@@ -5,11 +5,45 @@ let currentCategory = '';
 let currentSearch = '';
 let totalPages = 1;
 let selectedFile = null;
+let heartbeatTimer = null;
+let lastImageCount = 0;
 
 async function init() {
     await loadCategories();
     await loadImages();
     setupEventListeners();
+    startHeartbeat();
+}
+
+function startHeartbeat() {
+    heartbeatTimer = setInterval(async () => {
+        try {
+            const res = await fetch(`${API_BASE}/api/images?page=1&pageSize=1`, {
+                cache: 'no-cache',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.code === 200) {
+                const currentCount = data.data.pagination.total;
+                if (currentCount !== lastImageCount && lastImageCount > 0) {
+                    console.log(`Heartbeat: image count changed from ${lastImageCount} to ${currentCount}, refreshing...`);
+                    await loadImages();
+                    await loadCategories();
+                }
+                lastImageCount = currentCount;
+            }
+        } catch (err) {
+            console.error('Heartbeat error:', err);
+        }
+    }, 30000);
+}
+
+function stopHeartbeat() {
+    if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+    }
 }
 
 async function loadCategories(retries = 3) {
@@ -92,6 +126,7 @@ async function loadImages(retries = 3) {
         if (data.code === 200) {
             renderImages(data.data.images);
             totalPages = data.data.pagination.totalPages;
+            lastImageCount = data.data.pagination.total;
             renderPagination();
         }
     } catch (err) {

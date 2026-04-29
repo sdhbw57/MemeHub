@@ -31,11 +31,20 @@ fastify.register(require('@fastify/static'), {
 });
 
 fastify.get('/admin/*', async (request, reply) => {
-  return reply.sendFile('index.html', require('path').join(__dirname, '../../client/admin'));
+  const fs = require('fs');
+  const path = require('path');
+  const adminPath = path.join(__dirname, '../../client/admin');
+  const indexPath = path.join(adminPath, 'index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    const stream = fs.createReadStream(indexPath);
+    reply.header('Content-Type', 'text/html; charset=utf-8');
+    return reply.send(stream);
+  }
+  return reply.code(404).send('Not found');
 });
 
 fastify.register(require('./plugins/auth'));
-fastify.register(require('./routes/upload'));
 fastify.register(require('./routes/images'));
 fastify.register(require('./routes/categories'));
 fastify.register(require('./routes/api'));

@@ -8,7 +8,7 @@ function getFileExtension(filename) {
 }
 
 async function adminRoutes(fastify) {
-  fastify.post('/admin/login', async (request, reply) => {
+  fastify.post('/api/admin/login', async (request, reply) => {
     const { username, password } = request.body;
 
     if (!username || !password) {
@@ -28,7 +28,7 @@ async function adminRoutes(fastify) {
       return reply.code(401).send({ success: false, message: '用户名或密码错误' });
     }
 
-    await query('UPDATE admins SET last_login = NOW() WHERE id = ?', [admin.id]);
+    await query("UPDATE admins SET last_login = datetime('now') WHERE id = ?", [admin.id]);
     await logAction('login', admin.id, request, '登录成功', 1);
 
     const token = fastify.generateToken(admin);
@@ -42,12 +42,12 @@ async function adminRoutes(fastify) {
     });
   });
 
-  fastify.post('/admin/logout', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post('/api/admin/logout', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     await logAction('logout', request.user.id, request, '退出登录', 1);
     return reply.send({ success: true, message: '已退出登录' });
   });
 
-  fastify.get('/admin/me', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/admin/me', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const admins = await query('SELECT id, username, email, role, status, last_login, create_time FROM admins WHERE id = ?', [request.user.id]);
     if (admins.length === 0) {
       return reply.code(404).send({ success: false, message: '用户不存在' });
@@ -55,10 +55,51 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, data: admins[0] });
   });
 
-  fastify.get('/admin/dashboard', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/admin/heartbeat', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const [imageCount, todayCount, categoryCount] = await Promise.all([
       query('SELECT COUNT(*) as total FROM images').then(r => r[0].total),
-      query('SELECT COUNT(*) as total FROM images WHERE DATE(upload_time) = CURDATE()').then(r => r[0].total),
+      query("SELECT COUNT(*) as total FROM images WHERE DATE(upload_time) = DATE('now')").then(r => r[0].total),
+      query('SELECT COUNT(*) as total FROM categories').then(r => r[0].total),
+    ]);
+
+    const trendData = await query(
+      "SELECT strftime('%Y-%m-%d', upload_time) as date, COUNT(*) as count FROM images WHERE upload_time >= date('now', '-6 days') GROUP BY date ORDER BY date"
+    );
+
+    const categoryStats = await query(
+      'SELECT c.name as name, COUNT(i.id) as count FROM categories c LEFT JOIN images i ON c.id = i.category_id GROUP BY c.id ORDER BY count DESC'
+    );
+
+    const recentImages = await query(
+      'SELECT i.id, i.filename, i.original_name, c.name as category_name, i.file_size, i.views, i.upload_time FROM images i LEFT JOIN categories c ON i.category_id = c.id ORDER BY i.upload_time DESC LIMIT 5'
+    );
+
+    const recentImagesWithUrls = recentImages.map(img => ({
+      id: img.id,
+      name: img.original_name,
+      category: img.category_name || '未分类',
+      fileSize: img.file_size,
+      views: img.views,
+      thumbnailUrl: `${config.baseUrl}/t/${encryptUrl(img.id + '_thumb')}`,
+      uploadTime: img.upload_time,
+    }));
+
+    return reply.send({
+      success: true,
+      data: {
+        stats: { imageCount, todayCount, categoryCount },
+        trendData,
+        categoryStats,
+        recentImages: recentImagesWithUrls,
+        timestamp: Date.now()
+      }
+    });
+  });
+
+  fastify.get('/api/admin/dashboard', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    const [imageCount, todayCount, categoryCount] = await Promise.all([
+      query('SELECT COUNT(*) as total FROM images').then(r => r[0].total),
+      query("SELECT COUNT(*) as total FROM images WHERE DATE(upload_time) = DATE('now')").then(r => r[0].total),
       query('SELECT COUNT(*) as total FROM categories').then(r => r[0].total),
     ]);
 
@@ -79,6 +120,14 @@ async function adminRoutes(fastify) {
     const uptime = process.uptime();
     const memoryUsage = process.memoryUsage();
 
+    const trendData = await query(
+      "SELECT strftime('%Y-%m-%d', upload_time) as date, COUNT(*) as count FROM images WHERE upload_time >= date('now', '-6 days') GROUP BY date ORDER BY date"
+    );
+
+    const categoryStats = await query(
+      'SELECT c.name as name, COUNT(i.id) as count FROM categories c LEFT JOIN images i ON c.id = i.category_id GROUP BY c.id ORDER BY count DESC'
+    );
+
     return reply.send({
       success: true,
       data: {
@@ -92,12 +141,14 @@ async function adminRoutes(fastify) {
             heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
           },
           nodeVersion: process.version,
-        }
+        },
+        trendData,
+        categoryStats
       }
     });
   });
 
-  fastify.get('/admin/images', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/admin/images', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { page = 1, pageSize = 20, search = '', categoryId = '' } = request.query;
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
 
@@ -158,7 +209,7 @@ async function adminRoutes(fastify) {
     });
   });
 
-  fastify.delete('/admin/image/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.delete('/api/admin/image/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params;
     const images = await query('SELECT filename FROM images WHERE id = ?', [id]);
     if (images.length === 0) {
@@ -171,7 +222,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '删除成功' });
   });
 
-  fastify.post('/admin/image/batch-delete', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post('/api/admin/image/batch-delete', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { ids } = request.body;
     if (!Array.isArray(ids) || ids.length === 0) {
       return reply.code(400).send({ success: false, message: '请选择要删除的图片' });
@@ -183,7 +234,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: `已删除 ${ids.length} 张图片` });
   });
 
-  fastify.put('/admin/image/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put('/api/admin/image/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params;
     const { categoryId } = request.body;
 
@@ -202,12 +253,12 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '更新成功' });
   });
 
-  fastify.get('/admin/categories', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/admin/categories', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const categories = await query('SELECT * FROM categories ORDER BY sort_order ASC');
     return reply.send({ success: true, data: categories });
   });
 
-  fastify.post('/admin/category', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post('/api/admin/category', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { name, slug, description, sortOrder = 0 } = request.body;
 
     if (!name || !slug) {
@@ -229,7 +280,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '创建成功', data: { id: result.insertId, name, slug, sortOrder } });
   });
 
-  fastify.put('/admin/category/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put('/api/admin/category/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params;
     const { name, slug, description, sortOrder } = request.body;
 
@@ -246,7 +297,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '更新成功' });
   });
 
-  fastify.delete('/admin/category/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.delete('/api/admin/category/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params;
     const [category] = await query('SELECT name FROM categories WHERE id = ?', [id]);
     if (!category) {
@@ -259,7 +310,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '删除成功' });
   });
 
-  fastify.put('/admin/category/:id/sort', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put('/api/admin/category/:id/sort', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params;
     const { sortOrder } = request.body;
 
@@ -268,7 +319,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '排序更新成功' });
   });
 
-  fastify.get('/admin/tag-rules', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/admin/tag-rules', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const rules = await query(`
       SELECT t.id, t.tag, t.category_id, t.priority, t.is_active, c.name as category_name
       FROM tag_rules t
@@ -278,7 +329,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, data: rules });
   });
 
-  fastify.post('/admin/tag-rule', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post('/api/admin/tag-rule', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { tag, categoryId, priority = 0 } = request.body;
 
     if (!tag || !categoryId) {
@@ -291,7 +342,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '创建成功' });
   });
 
-  fastify.delete('/admin/tag-rule/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.delete('/api/admin/tag-rule/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params;
     await query('DELETE FROM tag_rules WHERE id = ?', [id]);
     await logAction('delete_tag_rule', request.user.id, request, `删除标签规则 ID: ${id}`, 1);
@@ -299,7 +350,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '删除成功' });
   });
 
-  fastify.put('/admin/tag-rule/:id/toggle', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put('/api/admin/tag-rule/:id/toggle', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params;
     const { isActive } = request.body;
     await query('UPDATE tag_rules SET is_active = ? WHERE id = ?', [isActive ? 1 : 0, id]);
@@ -307,14 +358,14 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '更新成功' });
   });
 
-  fastify.get('/admin/settings', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/admin/settings', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const settings = await query('SELECT * FROM settings');
     const settingsObj = {};
     settings.forEach(s => { settingsObj[s.key] = s.value; });
     return reply.send({ success: true, data: settingsObj });
   });
 
-  fastify.put('/admin/setting', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put('/api/admin/setting', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { key, value } = request.body;
 
     if (!key) {
@@ -333,7 +384,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '保存成功' });
   });
 
-  fastify.get('/admin/logs', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/admin/logs', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { page = 1, pageSize = 20, action = '', adminId = '' } = request.query;
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
 
@@ -377,7 +428,7 @@ async function adminRoutes(fastify) {
     });
   });
 
-  fastify.get('/admin/admins', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get('/api/admin/admins', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     if (request.user.role !== 'super_admin') {
       return reply.code(403).send({ success: false, message: '权限不足' });
     }
@@ -386,7 +437,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, data: admins });
   });
 
-  fastify.post('/admin/admin', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post('/api/admin/admin', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     if (request.user.role !== 'super_admin') {
       return reply.code(403).send({ success: false, message: '权限不足' });
     }
@@ -413,7 +464,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '创建成功', data: { id: result.insertId, username, email, role } });
   });
 
-  fastify.put('/admin/admin/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put('/api/admin/admin/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     if (request.user.role !== 'super_admin') {
       return reply.code(403).send({ success: false, message: '权限不足' });
     }
@@ -455,7 +506,7 @@ async function adminRoutes(fastify) {
     return reply.send({ success: true, message: '更新成功' });
   });
 
-  fastify.delete('/admin/admin/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  fastify.delete('/api/admin/admin/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     if (request.user.role !== 'super_admin') {
       return reply.code(403).send({ success: false, message: '权限不足' });
     }
