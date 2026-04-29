@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Data
+data/
+*.db
+*.sqlite
+
+# Uploads
+uploads/
+thumbnails/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Redis
+dump.rdb
+
+# AL Business Central
+.alcache/
+.alpackages/
+.snapshots/
+.output/
+*.app
+rad.json
+*.g.xlf
+*.bclicense
+*.flf
+TestResults.xml

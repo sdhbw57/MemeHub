@@ -1,0 +1,23 @@
+{
+  "name": "image-hosting-server",
+  "version": "1.0.0",
+  "description": "High-performance image hosting and meme gallery server",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.0",
+    "@fastify/multipart": "^8.0.0",
+    "@fastify/static": "^7.0.0",
+    "fastify": "^4.25.0",
+    "ioredis": "^5.3.0",
+    "sql.js": "^1.10.0",
+    "sharp": "^0.33.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
