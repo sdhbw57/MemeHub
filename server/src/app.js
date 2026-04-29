@@ -27,6 +27,11 @@ fastify.register(require('@fastify/static'), {
   root: require('path').join(__dirname, '../../client/admin'),
   prefix: '/admin/',
   decorateReply: false,
+  wildcard: false,
+});
+
+fastify.get('/admin/*', async (request, reply) => {
+  return reply.sendFile('index.html', require('path').join(__dirname, '../../client/admin'));
 });
 
 fastify.register(require('./plugins/auth'));
