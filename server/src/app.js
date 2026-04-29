@@ -23,10 +23,18 @@ fastify.register(require('@fastify/static'), {
   decorateReply: false,
 });
 
+fastify.register(require('@fastify/static'), {
+  root: require('path').join(__dirname, '../../client/admin'),
+  prefix: '/admin/',
+  decorateReply: false,
+});
+
+fastify.register(require('./plugins/auth'));
 fastify.register(require('./routes/upload'));
 fastify.register(require('./routes/images'));
 fastify.register(require('./routes/categories'));
 fastify.register(require('./routes/api'));
+fastify.register(require('./routes/admin'));
 
 fastify.get('/health', async (request, reply) => {
   return { status: 'ok', timestamp: new Date().toISOString() };
