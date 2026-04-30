@@ -13,7 +13,7 @@ fastify.register(require('@fastify/cors'), {
 fastify.register(require('@fastify/multipart'), {
   limits: {
     fileSize: 5 * 1024 * 1024,
-    files: 1,
+    files: 5,
   },
 });
 
@@ -45,6 +45,7 @@ fastify.get('/admin/*', async (request, reply) => {
 });
 
 fastify.register(require('./plugins/auth'));
+fastify.register(require('./middleware/requestLogger'));
 fastify.register(require('./routes/images'));
 fastify.register(require('./routes/categories'));
 fastify.register(require('./routes/api'));
@@ -87,7 +88,14 @@ async function start() {
       host: require('./config').server.host,
     });
 
-    console.log(`Server running at ${fastify.server.address().address}:${fastify.server.address().port}`);
+    const address = fastify.server.address();
+    const config = require('./config');
+    console.log(`Server running at http://${address.address}:${address.port}`);
+    console.log(`Local access: http://localhost:${address.port}`);
+    if (config.localIP !== '127.0.0.1') {
+      console.log(`Network access: http://${config.localIP}:${address.port}`);
+    }
+    console.log(`Base URL: ${config.baseUrl}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

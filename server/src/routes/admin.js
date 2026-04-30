@@ -56,10 +56,11 @@ async function adminRoutes(fastify) {
   });
 
   fastify.get('/api/admin/heartbeat', { preHandler: [fastify.authenticate] }, async (request, reply) => {
-    const [imageCount, todayCount, categoryCount] = await Promise.all([
+    const [imageCount, todayCount, categoryCount, totalSize] = await Promise.all([
       query('SELECT COUNT(*) as total FROM images').then(r => r[0].total),
       query("SELECT COUNT(*) as total FROM images WHERE DATE(upload_time) = DATE('now')").then(r => r[0].total),
       query('SELECT COUNT(*) as total FROM categories').then(r => r[0].total),
+      query("SELECT COALESCE(SUM(file_size), 0) as total FROM images").then(r => r[0].total),
     ]);
 
     const trendData = await query(
@@ -68,6 +69,10 @@ async function adminRoutes(fastify) {
 
     const categoryStats = await query(
       'SELECT c.name as name, COUNT(i.id) as count FROM categories c LEFT JOIN images i ON c.id = i.category_id GROUP BY c.id ORDER BY count DESC'
+    );
+
+    const storageTrendData = await query(
+      "SELECT strftime('%Y-%m-%d', upload_time) as date, COALESCE(SUM(file_size), 0) as size FROM images WHERE upload_time >= date('now', '-6 days') GROUP BY date ORDER BY date"
     );
 
     const recentImages = await query(
@@ -87,8 +92,9 @@ async function adminRoutes(fastify) {
     return reply.send({
       success: true,
       data: {
-        stats: { imageCount, todayCount, categoryCount },
+        stats: { imageCount, todayCount, categoryCount, totalSize },
         trendData,
+        storageTrendData,
         categoryStats,
         recentImages: recentImagesWithUrls,
         timestamp: Date.now()
@@ -97,10 +103,11 @@ async function adminRoutes(fastify) {
   });
 
   fastify.get('/api/admin/dashboard', { preHandler: [fastify.authenticate] }, async (request, reply) => {
-    const [imageCount, todayCount, categoryCount] = await Promise.all([
+    const [imageCount, todayCount, categoryCount, totalSize] = await Promise.all([
       query('SELECT COUNT(*) as total FROM images').then(r => r[0].total),
       query("SELECT COUNT(*) as total FROM images WHERE DATE(upload_time) = DATE('now')").then(r => r[0].total),
       query('SELECT COUNT(*) as total FROM categories').then(r => r[0].total),
+      query("SELECT COALESCE(SUM(file_size), 0) as total FROM images").then(r => r[0].total),
     ]);
 
     const recentImages = await query(
@@ -124,6 +131,10 @@ async function adminRoutes(fastify) {
       "SELECT strftime('%Y-%m-%d', upload_time) as date, COUNT(*) as count FROM images WHERE upload_time >= date('now', '-6 days') GROUP BY date ORDER BY date"
     );
 
+    const storageTrendData = await query(
+      "SELECT strftime('%Y-%m-%d', upload_time) as date, COALESCE(SUM(file_size), 0) as size FROM images WHERE upload_time >= date('now', '-6 days') GROUP BY date ORDER BY date"
+    );
+
     const categoryStats = await query(
       'SELECT c.name as name, COUNT(i.id) as count FROM categories c LEFT JOIN images i ON c.id = i.category_id GROUP BY c.id ORDER BY count DESC'
     );
@@ -131,7 +142,7 @@ async function adminRoutes(fastify) {
     return reply.send({
       success: true,
       data: {
-        stats: { imageCount, todayCount, categoryCount },
+        stats: { imageCount, todayCount, categoryCount, totalSize },
         recentImages: recentImagesWithUrls,
         systemStatus: {
           uptime: Math.floor(uptime),
@@ -143,6 +154,7 @@ async function adminRoutes(fastify) {
           nodeVersion: process.version,
         },
         trendData,
+        storageTrendData,
         categoryStats
       }
     });

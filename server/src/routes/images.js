@@ -331,9 +331,7 @@ async function imagesRoutes(fastify) {
     });
   });
 
-  fastify.post('/api/upload', {
-    preHandler: [fastify.authenticate],
-  }, async (request, reply) => {
+  fastify.post('/api/upload', async (request, reply) => {
     try {
       const uploadedFiles = [];
       let categoryId = null;

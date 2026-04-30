@@ -396,7 +396,7 @@ async function handleUpload(e) {
     
     try {
         const xhr = new XMLHttpRequest();
-        
+
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
                 const percent = Math.round((e.loaded / e.total) * 100);
@@ -404,21 +404,26 @@ async function handleUpload(e) {
                 progressText.textContent = '上传中... ' + percent + '%';
             }
         });
-        
+
         const result = await new Promise((resolve, reject) => {
             xhr.onload = () => {
+                console.log('Upload response status:', xhr.status, 'body:', xhr.responseText);
                 try {
                     resolve(JSON.parse(xhr.responseText));
                 } catch (err) {
                     reject(err);
                 }
             };
-            xhr.onerror = () => reject(new Error('Network error'));
-            
+            xhr.onerror = () => {
+                console.error('XHR error:', xhr.statusText, 'status:', xhr.status);
+                reject(new Error('Network error'));
+            };
+
             xhr.open('POST', API_BASE + '/api/upload');
             xhr.send(formData);
         });
-        
+
+        console.log('Upload result:', result);
         if (result.code === 201) {
             showToast('上传成功');
             closeUploadModal();

@@ -64,6 +64,18 @@ CREATE TABLE IF NOT EXISTS logs (
   create_time TIMESTAMP DEFAULT (datetime('now'))
 );
 
+-- API 访问日志表
+CREATE TABLE IF NOT EXISTS api_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  method TEXT NOT NULL,
+  url TEXT NOT NULL,
+  status_code INTEGER DEFAULT 200,
+  ip TEXT DEFAULT NULL,
+  user_agent TEXT DEFAULT NULL,
+  response_time INTEGER DEFAULT 0,
+  create_time TIMESTAMP DEFAULT (datetime('now'))
+);
+
 -- Tag Rules 表
 CREATE TABLE IF NOT EXISTS tag_rules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,6 +96,9 @@ CREATE INDEX IF NOT EXISTS idx_images_original_name ON images(original_name);
 CREATE INDEX IF NOT EXISTS idx_logs_admin ON logs(admin_id);
 CREATE INDEX IF NOT EXISTS idx_logs_action ON logs(action);
 CREATE INDEX IF NOT EXISTS idx_logs_create_time ON logs(create_time);
+CREATE INDEX IF NOT EXISTS idx_api_logs_url ON api_logs(url);
+CREATE INDEX IF NOT EXISTS idx_api_logs_ip ON api_logs(ip);
+CREATE INDEX IF NOT EXISTS idx_api_logs_create_time ON api_logs(create_time);
 
 -- 插入默认分类
 INSERT OR IGNORE INTO categories (name, slug, description, sort_order) VALUES

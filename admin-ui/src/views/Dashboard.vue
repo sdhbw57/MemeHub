@@ -121,7 +121,7 @@
             <div class="card-header">
               <span class="card-title">
                 <el-icon><Histogram /></el-icon>
-                浏览量排行
+                存储用量趋势
               </span>
             </div>
           </template>
@@ -252,6 +252,7 @@ const recentImages = ref([]);
 const systemStatus = ref({ memoryUsage: {} });
 const categoryData = ref([]);
 const trendData = ref([]);
+const storageTrendData = ref([]);
 
 const trendChartRef = ref(null);
 const pieChartRef = ref(null);
@@ -287,6 +288,7 @@ const loadDashboard = async () => {
     systemStatus.value = res.data.systemStatus;
     categoryData.value = res.data.categoryStats || [];
     trendData.value = res.data.trendData || [];
+    storageTrendData.value = res.data.storageTrendData || [];
     updateCharts();
   } catch (e) {
     console.error(e);
@@ -304,6 +306,7 @@ const heartbeat = async () => {
     stats.value = data.stats;
     categoryData.value = data.categoryStats || [];
     trendData.value = data.trendData || [];
+    storageTrendData.value = data.storageTrendData || [];
     if (data.recentImages) recentImages.value = data.recentImages;
     updateCharts();
   } catch (e) {
@@ -314,7 +317,7 @@ const heartbeat = async () => {
 const updateCharts = () => {
   if (trendChart) trendChart.setOption(getTrendOption());
   if (pieChart) pieChart.setOption(getPieOption());
-  if (barChart) barChart.setOption(getBarOption());
+  if (barChart) barChart.setOption(getStorageOption());
 };
 
 const getTrendOption = () => {
@@ -395,34 +398,75 @@ const getPieOption = () => {
   };
 };
 
-const getBarOption = () => ({
-  tooltip: { trigger: 'axis', backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#eee', textStyle: { color: '#333' } },
-  grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
-  xAxis: {
-    type: 'category',
-    data: recentImages.value.slice(0, 5).map(img => img.name.substring(0, 10)),
-    axisLine: { lineStyle: { color: '#e0e0e0' } },
-    axisLabel: { color: '#666', rotate: 15 }
-  },
-  yAxis: {
-    type: 'value',
-    axisLine: { show: false },
-    splitLine: { lineStyle: { color: '#f0f0f0' } },
-    axisLabel: { color: '#666' }
-  },
-  series: [{
-    type: 'bar',
-    barWidth: '50%',
-    itemStyle: {
-      borderRadius: [8, 8, 0, 0],
-      color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color: '#667eea' },
-        { offset: 1, color: '#764ba2' }
-      ])
+const getStorageOption = () => {
+  const dates = [];
+  const sizes = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    dates.push(`${month}/${day}`);
+    const found = storageTrendData.value.find(item => item.date === dateStr);
+    sizes.push(found ? found.size : 0);
+  }
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      borderColor: '#eee',
+      textStyle: { color: '#333' },
+      formatter: (params) => {
+        const val = params[0].value;
+        let unit = 'B';
+        let v = val;
+        if (val >= 1024 * 1024) { v = (val / (1024 * 1024)).toFixed(2); unit = 'MB'; }
+        else if (val >= 1024) { v = (val / 1024).toFixed(2); unit = 'KB'; }
+        return `${params[0].name}<br/>存储用量: ${v} ${unit}`;
+      }
     },
-    data: recentImages.value.slice(0, 5).map(img => img.views || Math.floor(Math.random() * 1000))
-  }]
-});
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: dates,
+      axisLine: { lineStyle: { color: '#e0e0e0' } },
+      axisLabel: { color: '#666' }
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: '#f0f0f0' } },
+      axisLabel: {
+        color: '#666',
+        formatter: (val) => {
+          if (val >= 1024 * 1024) return (val / (1024 * 1024)).toFixed(1) + 'MB';
+          if (val >= 1024) return (val / 1024).toFixed(1) + 'KB';
+          return val + 'B';
+        }
+      }
+    },
+    series: [{
+      name: '存储用量',
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 8,
+      lineStyle: { width: 3, color: '#43e97b' },
+      itemStyle: { color: '#43e97b', borderWidth: 2, borderColor: '#fff' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(67,233,123,0.3)' },
+          { offset: 1, color: 'rgba(67,233,123,0.05)' }
+        ])
+      },
+      data: sizes
+    }]
+  };
+};
 
 const initCharts = () => {
   if (trendChartRef.value) {
@@ -435,7 +479,7 @@ const initCharts = () => {
   }
   if (barChartRef.value) {
     barChart = echarts.init(barChartRef.value);
-    barChart.setOption(getBarOption());
+    barChart.setOption(getStorageOption());
   }
 };
 
